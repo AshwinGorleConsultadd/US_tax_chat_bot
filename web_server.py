@@ -274,48 +274,47 @@ def api_upload_documents():
             'failed_files': failed_files
         }
         
-        # Process the uploaded files using the upload function
-        try:
-            from upload_documents import process_uploaded_files
-            
-            logger.info("Starting document processing...")
-            success = process_uploaded_files(uploaded_files, progress_file)
-            
-            if success:
-                logger.info("Document processing completed successfully")
-                # Clean up progress file
-                if os.path.exists(progress_file):
-                    os.remove(progress_file)
-                
-                return jsonify({
-                    'success': True,
-                    'data': {
-                        'message': f'Successfully processed {len(uploaded_files)} documents',
-                        'uploaded_files': [os.path.basename(f) for f in uploaded_files],
-                        'failed_files': failed_files,
-                        'session_id': session_id
-                    }
-                })
-            else:
-                logger.error("Document processing failed")
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to process documents. Check server logs for details.'
-                }), 500
-                
-        except ImportError as e:
-            logger.error(f"Failed to import upload function: {str(e)}")
-            return jsonify({
-                'success': False,
-                'error': 'Upload processing module not available'
-            }), 500
-        except Exception as e:
-            logger.error(f"Error processing documents: {str(e)}")
-            return jsonify({
-                'success': False,
-                'error': f'Document processing failed: {str(e)}'
-            }), 500
+        # Start processing the uploaded files asynchronously
+        import threading
+        from upload_documents import process_uploaded_files
         
+        def process_files_async():
+            global current_upload_session
+            try:
+                logger.info("Starting document processing...")
+                success = process_uploaded_files(uploaded_files, progress_file)
+                
+                if success:
+                    logger.info("Document processing completed successfully")
+                    # Update session status to completed
+                    if current_upload_session and current_upload_session['session_id'] == session_id:
+                        current_upload_session['status'] = 'completed'
+                else:
+                    logger.error("Document processing failed")
+                    # Update session status to error
+                    if current_upload_session and current_upload_session['session_id'] == session_id:
+                        current_upload_session['status'] = 'error'
+            except Exception as e:
+                logger.error(f"Error in async processing: {str(e)}")
+                # Update session status to error
+                if current_upload_session and current_upload_session['session_id'] == session_id:
+                    current_upload_session['status'] = 'error'
+        
+        # Start processing in background thread
+        processing_thread = threading.Thread(target=process_files_async)
+        processing_thread.daemon = True
+        processing_thread.start()
+        
+        # Return immediately with session ID for polling
+        return jsonify({
+            'success': True,
+            'data': {
+                'message': f'Upload started for {len(uploaded_files)} documents',
+                'uploaded_files': [os.path.basename(f) for f in uploaded_files],
+                'failed_files': failed_files,
+                'session_id': session_id
+            }
+        })
     except Exception as e:
         logger.error(f"Error in upload_documents API: {str(e)}")
         return jsonify({

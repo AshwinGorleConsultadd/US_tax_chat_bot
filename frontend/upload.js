@@ -222,7 +222,7 @@ class DocumentUploader {
         
         this.isUploading = true;
         this.showProgress();
-        this.updateProgress(0, 'Preparing upload...');
+        this.updateProgress(0, 'Starting upload...');
         
         try {
             const formData = new FormData();
@@ -274,7 +274,14 @@ class DocumentUploader {
         this.elements.progressText.textContent = text;
         
         // Add progress details
-        if (percentage === 10) {
+        if (percentage === 0) {
+            this.elements.progressDetails.innerHTML = `
+                <div class="progress-step">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Starting upload...</span>
+                </div>
+            `;
+        } else if (percentage === 10) {
             this.elements.progressDetails.innerHTML = `
                 <div class="progress-step">
                     <i class="fas fa-check"></i>
@@ -418,25 +425,11 @@ class DocumentUploader {
     }
     
     updateRealProgress(data) {
-        // Calculate progress based on processed files
-        const fileProgress = (data.processedFiles / data.totalFiles) * 100;
-        const stageProgress = this.getStageProgress(data.currentStage);
-        const totalProgress = Math.min(fileProgress + stageProgress, 100);
+        // Use the percentage directly from backend
+        this.elements.progressFill.style.width = `${data.percentage}%`;
         
-        this.elements.progressFill.style.width = `${totalProgress}%`;
-        
-        // Show simple progress message
-        if (data.currentStage === 'extracting' || data.currentStage === 'chunking') {
-            this.elements.progressText.textContent = `Processing ${data.currentFile}...`;
-        } else if (data.currentStage === 'completed_file') {
-            this.elements.progressText.textContent = `File ${data.processedFiles} uploaded successfully!`;
-        } else if (data.currentStage === 'embedding') {
-            this.elements.progressText.textContent = 'Generating embeddings...';
-        } else if (data.currentStage === 'storing') {
-            this.elements.progressText.textContent = 'Storing in database...';
-        } else if (data.currentStage === 'completed') {
-            this.elements.progressText.textContent = 'Upload completed successfully!';
-        }
+        // Show progress message
+        this.elements.progressText.textContent = data.message;
         
         // Show simple progress details
         let details = '';
@@ -446,22 +439,12 @@ class DocumentUploader {
             details += `
                 <div class="progress-step">
                     <i class="fas fa-check"></i>
-                    <span>File ${i + 1} uploaded successfully</span>
+                    <span>File ${i + 1} processed successfully</span>
                 </div>
             `;
         }
         
-        // Show current file being processed (only if not completed_file stage)
-        if (data.currentFile && data.currentStage !== 'embedding' && data.currentStage !== 'storing' && data.currentStage !== 'completed_file') {
-            details += `
-                <div class="progress-step">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Processing ${data.currentFile}...</span>
-                </div>
-            `;
-        }
-        
-        // Show final stages
+        // Show current stage
         if (data.currentStage === 'embedding') {
             details += `
                 <div class="progress-step">
@@ -500,16 +483,6 @@ class DocumentUploader {
         this.elements.progressDetails.innerHTML = details;
     }
     
-    getStageProgress(stage) {
-        // Return small progress increment for each stage within a file
-        switch (stage) {
-            case 'extracting': return 5;
-            case 'chunking': return 10;
-            case 'embedding': return 15;
-            case 'storing': return 20;
-            default: return 0;
-        }
-    }
     
     showError(message) {
         this.elements.errorMessage.textContent = message;

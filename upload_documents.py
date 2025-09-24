@@ -165,11 +165,11 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
                 logger.info(f"Successfully processed {current_file}")
                 
                 # Update progress for file completion
-                completion_percentage = int(base_percentage + (30 / total_files))
+                file_progress = ((file_index + 1) / total_files) * 80  # 80% for all files processed
                 write_progress(progress_file, {
                     'status': 'processing',
-                    'percentage': completion_percentage,
-                    'message': f'File {file_index + 1} uploaded successfully',
+                    'percentage': int(file_progress),
+                    'message': f'{current_file} processed successfully',
                     'currentFile': current_file,
                     'currentStage': 'completed_file',
                     'totalFiles': total_files,
@@ -189,7 +189,7 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
         # Update progress for embedding generation
         write_progress(progress_file, {
             'status': 'processing',
-            'percentage': 70,
+            'percentage': 85,
             'message': f'Generating embeddings for {len(all_chunks)} chunks',
             'currentFile': '',
             'currentStage': 'embedding',
@@ -219,7 +219,7 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
         # Update progress for database storage
         write_progress(progress_file, {
             'status': 'processing',
-            'percentage': 90,
+            'percentage': 95,
             'message': f'Storing {len(enhanced_chunks)} chunks in database',
             'currentFile': '',
             'currentStage': 'storing',
@@ -241,7 +241,7 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
         write_progress(progress_file, {
             'status': 'completed',
             'percentage': 100,
-            'message': f'Successfully processed {total_files} files',
+            'message': f'All {total_files} files uploaded successfully!',
             'currentFile': '',
             'currentStage': 'completed',
             'totalFiles': total_files,
