@@ -8,7 +8,6 @@ class DocumentUploader {
     constructor() {
         this.selectedFiles = [];
         this.isUploading = false;
-
         this.currentSessionId = null;
         this.pollingInterval = null;
         
@@ -245,7 +244,7 @@ class DocumentUploader {
             const result = await response.json();
             
             if (result.success) {
-                // Start polling for progress
+                // Start polling for real progress
                 this.currentSessionId = result.data.session_id;
                 this.startPolling();
             } else {
@@ -419,57 +418,70 @@ class DocumentUploader {
     }
     
     updateRealProgress(data) {
-        this.elements.progressFill.style.width = `${data.percentage}%`;
-        this.elements.progressText.textContent = data.message;
+        // Calculate progress based on processed files
+        const fileProgress = (data.processedFiles / data.totalFiles) * 100;
+        const stageProgress = this.getStageProgress(data.currentStage);
+        const totalProgress = Math.min(fileProgress + stageProgress, 100);
         
-        // Update progress details based on stage
-        let details = '';
-        if (data.currentStage === 'extracting') {
-            details = `
-                <div class="progress-step">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Extracting text from ${data.currentFile}</span>
-                </div>
-            `;
-        } else if (data.currentStage === 'chunking') {
-            details = `
-                <div class="progress-step">
-                    <i class="fas fa-check"></i>
-                    <span>Text extracted from ${data.currentFile}</span>
-                </div>
-                <div class="progress-step">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Chunking text from ${data.currentFile}</span>
-                </div>
-            `;
+        this.elements.progressFill.style.width = `${totalProgress}%`;
+        
+        // Show simple progress message
+        if (data.currentStage === 'extracting' || data.currentStage === 'chunking') {
+            this.elements.progressText.textContent = `Processing ${data.currentFile}...`;
+        } else if (data.currentStage === 'completed_file') {
+            this.elements.progressText.textContent = `File ${data.processedFiles} uploaded successfully!`;
         } else if (data.currentStage === 'embedding') {
-            details = `
+            this.elements.progressText.textContent = 'Generating embeddings...';
+        } else if (data.currentStage === 'storing') {
+            this.elements.progressText.textContent = 'Storing in database...';
+        } else if (data.currentStage === 'completed') {
+            this.elements.progressText.textContent = 'Upload completed successfully!';
+        }
+        
+        // Show simple progress details
+        let details = '';
+        
+        // Show completed files
+        for (let i = 0; i < data.processedFiles; i++) {
+            details += `
                 <div class="progress-step">
                     <i class="fas fa-check"></i>
-                    <span>All files processed</span>
+                    <span>File ${i + 1} uploaded successfully</span>
                 </div>
+            `;
+        }
+        
+        // Show current file being processed (only if not completed_file stage)
+        if (data.currentFile && data.currentStage !== 'embedding' && data.currentStage !== 'storing' && data.currentStage !== 'completed_file') {
+            details += `
                 <div class="progress-step">
                     <i class="fas fa-spinner fa-spin"></i>
-                    <span>Generating embeddings</span>
+                    <span>Processing ${data.currentFile}...</span>
+                </div>
+            `;
+        }
+        
+        // Show final stages
+        if (data.currentStage === 'embedding') {
+            details += `
+                <div class="progress-step">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Generating embeddings...</span>
                 </div>
             `;
         } else if (data.currentStage === 'storing') {
-            details = `
+            details += `
                 <div class="progress-step">
                     <i class="fas fa-check"></i>
                     <span>All files processed</span>
                 </div>
                 <div class="progress-step">
-                    <i class="fas fa-check"></i>
-                    <span>Embeddings generated</span>
-                </div>
-                <div class="progress-step">
                     <i class="fas fa-spinner fa-spin"></i>
-                    <span>Storing in database</span>
+                    <span>Storing in database...</span>
                 </div>
             `;
         } else if (data.currentStage === 'completed') {
-            details = `
+            details += `
                 <div class="progress-step">
                     <i class="fas fa-check"></i>
                     <span>All files processed</span>
@@ -486,6 +498,17 @@ class DocumentUploader {
         }
         
         this.elements.progressDetails.innerHTML = details;
+    }
+    
+    getStageProgress(stage) {
+        // Return small progress increment for each stage within a file
+        switch (stage) {
+            case 'extracting': return 5;
+            case 'chunking': return 10;
+            case 'embedding': return 15;
+            case 'storing': return 20;
+            default: return 0;
+        }
     }
     
     showError(message) {

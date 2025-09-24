@@ -164,6 +164,18 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
                 
                 logger.info(f"Successfully processed {current_file}")
                 
+                # Update progress for file completion
+                completion_percentage = int(base_percentage + (30 / total_files))
+                write_progress(progress_file, {
+                    'status': 'processing',
+                    'percentage': completion_percentage,
+                    'message': f'File {file_index + 1} uploaded successfully',
+                    'currentFile': current_file,
+                    'currentStage': 'completed_file',
+                    'totalFiles': total_files,
+                    'processedFiles': file_index + 1
+                })
+                
             except Exception as e:
                 logger.error(f"Error processing {pdf_path}: {str(e)}")
                 continue
