@@ -225,9 +225,7 @@ local.properties
 # Project-specific files
 # Vector database files
 
-*.db
-*.sqlite
-*.sqlite3
+
 
 # Exception: Allow ChromaDB SQLite file to be tracked
 !chroma_db/chroma.sqlite3

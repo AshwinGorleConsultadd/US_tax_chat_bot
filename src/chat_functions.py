@@ -66,10 +66,10 @@ class ChatManager:
                 return "Error: Unable to initialize chat components. Please check your configuration."
         
         try:
-            # Process the query with chat history
+            # Process the query with chat history (increased k for more context)
             result = self.retrieval_system.process_query(
                 query=message,
-                k=5,
+                k=20,  # Increased from 12 to 20 for more comprehensive context
                 chat_history=self.chat_history
             )
             
