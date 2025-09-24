@@ -227,8 +227,9 @@ local.properties
 
 
 
+# ChromaDB vector database (exclude all files)
 # Exception: Allow ChromaDB SQLite file to be tracked
-!chroma_db/chroma.sqlite3
+# !chroma_db/chroma.sqlite3
 
 # Input PDF files (keep structure but ignore content)
 input/*.pdf
