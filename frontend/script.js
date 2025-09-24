@@ -229,12 +229,50 @@ class TaxChatbot {
     }
     
     formatMessage(content) {
-        // Basic formatting for better readability
-        return content
-            .replace(/\n/g, '<br>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`(.*?)`/g, '<code>$1</code>');
+        // Enhanced markdown formatting for better readability
+        let formatted = content;
+        
+        // Handle markdown headers (must be processed first)
+        formatted = formatted
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>');
+        
+        // Handle line breaks
+        formatted = formatted.replace(/\n/g, '<br>');
+        
+        // Handle bold text
+        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Handle italic text
+        formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        
+        // Handle inline code
+        formatted = formatted.replace(/`(.*?)`/g, '<code>$1</code>');
+        
+        // Handle code blocks (triple backticks)
+        formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        
+        // Handle unordered lists
+        formatted = formatted.replace(/^[\s]*[-*+] (.*$)/gm, '<li>$1</li>');
+        
+        // Handle ordered lists  
+        formatted = formatted.replace(/^[\s]*\d+\. (.*$)/gm, '<li>$1</li>');
+        
+        // Wrap consecutive list items in appropriate list tags
+        formatted = formatted.replace(/(<li>.*<\/li>)(\s*<li>.*<\/li>)*/gs, (match) => {
+            // Check if it contains ordered list pattern (digits)
+            if (/\d+\./.test(match)) {
+                return '<ol>' + match + '</ol>';
+            } else {
+                return '<ul>' + match + '</ul>';
+            }
+        });
+        
+        // Handle links
+        formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        return formatted;
     }
     
     showTypingIndicator() {

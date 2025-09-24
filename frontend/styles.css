@@ -324,6 +324,34 @@ body {
     color: var(--text-primary);
 }
 
+.message-text pre {
+    background: var(--border-light);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin: 0.5rem 0;
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+}
+
+.message-text pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.message-text a {
+    color: var(--primary-color);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-bottom-color 0.2s ease;
+}
+
+.message-text a:hover {
+    border-bottom-color: var(--primary-color);
+}
+
 .message-text br {
     margin: 0.25rem 0;
 }
