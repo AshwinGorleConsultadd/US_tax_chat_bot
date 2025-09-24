@@ -1,0 +1,27 @@
+# Core LangChain dependencies
+langchain
+langchain-openai
+langchain-community
+
+# Vector database
+chromadb
+
+# PDF processing libraries (PyMuPDF removed due to compilation issues)
+PyPDF2
+pdfplumber
+
+# OpenAI API
+openai
+
+# Environment and utilities
+python-dotenv
+tiktoken
+
+# Additional dependencies for better functionality
+numpy
+pandas
+
+# Web server dependencies
+flask
+flask-cors
+
