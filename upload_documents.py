@@ -201,7 +201,7 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
         logger.info("Generating embeddings for all chunks...")
         enhanced_chunks = embeddings_generator.generate_embeddings_with_metadata(
             all_chunks,
-            batch_size=50
+            batch_size=100
         )
         
         logger.info(f"Generated embeddings for {len(enhanced_chunks)} chunks")
