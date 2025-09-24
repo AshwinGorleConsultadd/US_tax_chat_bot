@@ -111,18 +111,18 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
         logger.info("Initializing vector database...")
         vector_database = VectorDatabase()
         
-        # Process each PDF file
-        all_chunks = []
+        # Process each PDF file completely (extract → split → embed → store)
+        total_processed_chunks = 0
         
         for file_index, pdf_path in enumerate(existing_files):
             current_file = os.path.basename(pdf_path)
             logger.info(f"Processing PDF: {current_file}")
             
             # Update progress for file start
-            base_percentage = (file_index / total_files) * 100
+            file_progress = (file_index / total_files) * 100
             write_progress(progress_file, {
                 'status': 'processing',
-                'percentage': int(base_percentage),
+                'percentage': int(file_progress),
                 'message': f'Processing file {file_index + 1} of {total_files}: {current_file}',
                 'currentFile': current_file,
                 'currentStage': 'extracting',
@@ -131,18 +131,18 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
             })
             
             try:
-                # Extract text from PDF
+                # Step 1: Extract text from PDF
                 logger.info("Extracting text from PDF...")
                 extraction_result = pdf_extractor.extract_text_from_pdf(pdf_path)
                 
                 logger.info(f"Extracted {extraction_result['metadata']['total_characters']} characters")
                 logger.info(f"Total pages: {extraction_result['metadata']['total_pages']}")
                 
-                # Update progress for chunking stage
-                chunking_percentage = int(base_percentage + (20 / total_files))
+                # Step 2: Split text into chunks
+                chunking_progress = int(file_progress + (10 / total_files))
                 write_progress(progress_file, {
                     'status': 'processing',
-                    'percentage': chunking_percentage,
+                    'percentage': chunking_progress,
                     'message': f'Chunking text from {current_file}',
                     'currentFile': current_file,
                     'currentStage': 'chunking',
@@ -150,25 +150,65 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
                     'processedFiles': file_index
                 })
                 
-                # Split text into chunks
                 logger.info("Splitting text into chunks...")
                 chunks = text_splitter.split_text(
                     extraction_result['text'],
                     extraction_result['metadata']
                 )
                 
-                logger.info(f"Created {len(chunks)} chunks")
+                logger.info(f"Created {len(chunks)} chunks for {current_file}")
                 
-                # Add chunks to the list
-                all_chunks.extend(chunks)
+                if not chunks:
+                    logger.warning(f"No chunks created from {current_file}")
+                    continue
                 
-                logger.info(f"Successfully processed {current_file}")
-                
-                # Update progress for file completion
-                file_progress = ((file_index + 1) / total_files) * 80  # 80% for all files processed
+                # Step 3: Generate embeddings for this PDF's chunks
+                embedding_progress = int(file_progress + (20 / total_files))
                 write_progress(progress_file, {
                     'status': 'processing',
-                    'percentage': int(file_progress),
+                    'percentage': embedding_progress,
+                    'message': f'Generating embeddings for {current_file}',
+                    'currentFile': current_file,
+                    'currentStage': 'embedding',
+                    'totalFiles': total_files,
+                    'processedFiles': file_index
+                })
+                
+                logger.info(f"Generating embeddings for {len(chunks)} chunks from {current_file}")
+                enhanced_chunks = embeddings_generator.generate_embeddings_with_metadata(
+                    chunks,
+                    batch_size=100
+                )
+                
+                logger.info(f"Generated embeddings for {len(enhanced_chunks)} chunks from {current_file}")
+                
+                # Step 4: Store chunks in vector database
+                storing_progress = int(file_progress + (30 / total_files))
+                write_progress(progress_file, {
+                    'status': 'processing',
+                    'percentage': storing_progress,
+                    'message': f'Storing {current_file} in database',
+                    'currentFile': current_file,
+                    'currentStage': 'storing',
+                    'totalFiles': total_files,
+                    'processedFiles': file_index
+                })
+                
+                logger.info(f"Adding {len(enhanced_chunks)} chunks from {current_file} to vector database")
+                success = vector_database.add_chunks(enhanced_chunks)
+                
+                if not success:
+                    logger.error(f"Failed to add chunks from {current_file} to vector database")
+                    continue
+                
+                total_processed_chunks += len(enhanced_chunks)
+                logger.info(f"Successfully processed {current_file} - {len(enhanced_chunks)} chunks stored")
+                
+                # Update progress for file completion
+                completion_progress = ((file_index + 1) / total_files) * 100
+                write_progress(progress_file, {
+                    'status': 'processing',
+                    'percentage': int(completion_progress),
                     'message': f'{current_file} processed successfully',
                     'currentFile': current_file,
                     'currentStage': 'completed_file',
@@ -180,62 +220,11 @@ def process_uploaded_files(file_paths: List[str], progress_file: str = None) -> 
                 logger.error(f"Error processing {pdf_path}: {str(e)}")
                 continue
         
-        if not all_chunks:
-            logger.error("No chunks created from any PDF files")
+        if total_processed_chunks == 0:
+            logger.error("No chunks processed from any PDF files")
             return False
         
-        logger.info(f"Total chunks created: {len(all_chunks)}")
-        
-        # Update progress for embedding generation
-        write_progress(progress_file, {
-            'status': 'processing',
-            'percentage': 85,
-            'message': f'Generating embeddings for {len(all_chunks)} chunks',
-            'currentFile': '',
-            'currentStage': 'embedding',
-            'totalFiles': total_files,
-            'processedFiles': total_files
-        })
-        
-        # Generate embeddings for all chunks
-        logger.info("Generating embeddings for all chunks...")
-        enhanced_chunks = embeddings_generator.generate_embeddings_with_metadata(
-            all_chunks,
-            batch_size=100
-        )
-        
-        logger.info(f"Generated embeddings for {len(enhanced_chunks)} chunks")
-        
-        # Validate embeddings
-        embeddings = [chunk.get('embedding', []) for chunk in enhanced_chunks]
-        is_valid = embeddings_generator.validate_embeddings(embeddings)
-        
-        if not is_valid:
-            logger.error("Embedding validation failed")
-            return False
-        
-        logger.info("Embeddings validation passed")
-        
-        # Update progress for database storage
-        write_progress(progress_file, {
-            'status': 'processing',
-            'percentage': 95,
-            'message': f'Storing {len(enhanced_chunks)} chunks in database',
-            'currentFile': '',
-            'currentStage': 'storing',
-            'totalFiles': total_files,
-            'processedFiles': total_files
-        })
-        
-        # Add chunks to vector database
-        logger.info("Adding chunks to vector database...")
-        success = vector_database.add_chunks(enhanced_chunks)
-        
-        if not success:
-            logger.error("Failed to add chunks to vector database")
-            return False
-        
-        logger.info("Successfully added all chunks to vector database")
+        logger.info(f"Total chunks processed and stored: {total_processed_chunks}")
         
         # Update progress for completion
         write_progress(progress_file, {
