@@ -229,6 +229,9 @@ local.properties
 *.sqlite
 *.sqlite3
 
+# Exception: Allow ChromaDB SQLite file to be tracked
+!chroma_db/chroma.sqlite3
+
 # Input PDF files (keep structure but ignore content)
 input/*.pdf
 input/*.PDF
