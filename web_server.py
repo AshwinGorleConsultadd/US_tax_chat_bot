@@ -16,6 +16,7 @@ import os
 import sys
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
 # Add src directory to path for imports
@@ -35,8 +36,17 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='frontend', static_url_path='')
 CORS(app)
 
+# Upload configuration
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
 # Global chat functions instance
 chat_functions = None
+
+# Global upload progress tracking
+current_upload_session = None
 
 def initialize_chat_functions():
     """Initialize the chat functions module."""
@@ -57,6 +67,11 @@ def initialize_chat_functions():
 def index():
     """Serve the main chat interface."""
     return send_from_directory('frontend', 'index.html')
+
+@app.route('/upload.html')
+def upload():
+    """Serve the upload page."""
+    return send_from_directory('frontend', 'upload.html')
 
 @app.route('/api/send_message', methods=['POST'])
 def api_send_message():
@@ -184,6 +199,182 @@ def api_status():
         return jsonify({
             'success': False,
             'error': f'Status check failed: {str(e)}'
+        }), 500
+
+def allowed_file(filename):
+    """Check if the uploaded file has an allowed extension."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/upload_documents', methods=['POST'])
+def api_upload_documents():
+    """API endpoint to upload PDF documents and process them."""
+    try:
+        logger.info("Starting document upload process")
+        
+        # Check if files are present
+        if 'files' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No files provided'
+            }), 400
+        
+        files = request.files.getlist('files')
+        
+        if not files or all(file.filename == '' for file in files):
+            return jsonify({
+                'success': False,
+                'error': 'No files selected'
+            }), 400
+        
+        # Create uploads directory if it doesn't exist
+        if not os.path.exists(UPLOAD_FOLDER):
+            os.makedirs(UPLOAD_FOLDER)
+            logger.info(f"Created uploads directory: {UPLOAD_FOLDER}")
+        
+        # Process uploaded files
+        uploaded_files = []
+        failed_files = []
+        
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
+                
+                try:
+                    file.save(file_path)
+                    uploaded_files.append(file_path)
+                    logger.info(f"Successfully saved file: {filename}")
+                except Exception as e:
+                    logger.error(f"Failed to save file {filename}: {str(e)}")
+                    failed_files.append(filename)
+            else:
+                logger.warning(f"Invalid file type: {file.filename}")
+                failed_files.append(file.filename)
+        
+        if not uploaded_files:
+            return jsonify({
+                'success': False,
+                'error': 'No valid PDF files were uploaded'
+            }), 400
+        
+        logger.info(f"Successfully uploaded {len(uploaded_files)} files")
+        
+        # Generate unique session ID for progress tracking
+        import uuid
+        session_id = str(uuid.uuid4())
+        progress_file = os.path.join(UPLOAD_FOLDER, f'progress_{session_id}.json')
+        
+        # Set global upload session
+        global current_upload_session
+        current_upload_session = {
+            'session_id': session_id,
+            'progress_file': progress_file,
+            'status': 'processing',
+            'uploaded_files': uploaded_files,
+            'failed_files': failed_files
+        }
+        
+        # Process the uploaded files using the upload function
+        try:
+            from upload_documents import process_uploaded_files
+            
+            logger.info("Starting document processing...")
+            success = process_uploaded_files(uploaded_files, progress_file)
+            
+            if success:
+                logger.info("Document processing completed successfully")
+                # Clean up progress file
+                if os.path.exists(progress_file):
+                    os.remove(progress_file)
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'message': f'Successfully processed {len(uploaded_files)} documents',
+                        'uploaded_files': [os.path.basename(f) for f in uploaded_files],
+                        'failed_files': failed_files,
+                        'session_id': session_id
+                    }
+                })
+            else:
+                logger.error("Document processing failed")
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to process documents. Check server logs for details.'
+                }), 500
+                
+        except ImportError as e:
+            logger.error(f"Failed to import upload function: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Upload processing module not available'
+            }), 500
+        except Exception as e:
+            logger.error(f"Error processing documents: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Document processing failed: {str(e)}'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error in upload_documents API: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Upload failed: {str(e)}'
+        }), 500
+
+@app.route('/api/upload_progress/<session_id>', methods=['GET'])
+def api_upload_progress(session_id):
+    """API endpoint to get upload progress for a session."""
+    try:
+        global current_upload_session
+        
+        # Check if session exists
+        if not current_upload_session or current_upload_session['session_id'] != session_id:
+            return jsonify({
+                'success': False,
+                'error': 'Session not found'
+            }), 404
+        
+        progress_file = current_upload_session['progress_file']
+        
+        # Read progress from file
+        if os.path.exists(progress_file):
+            try:
+                import json
+                with open(progress_file, 'r') as f:
+                    progress_data = json.load(f)
+                
+                return jsonify({
+                    'success': True,
+                    'data': progress_data
+                })
+            except Exception as e:
+                logger.error(f"Error reading progress file: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to read progress'
+                }), 500
+        else:
+            # Progress file doesn't exist yet, return initial state
+            return jsonify({
+                'success': True,
+                'data': {
+                    'status': 'starting',
+                    'percentage': 0,
+                    'message': 'Starting upload...',
+                    'currentFile': '',
+                    'currentStage': 'initializing',
+                    'totalFiles': len(current_upload_session['uploaded_files']),
+                    'processedFiles': 0
+                }
+            })
+        
+    except Exception as e:
+        logger.error(f"Error in upload_progress API: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Progress check failed: {str(e)}'
         }), 500
 
 @app.errorhandler(404)

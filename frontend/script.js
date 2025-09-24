@@ -20,6 +20,7 @@ class TaxChatbot {
             typingIndicator: document.getElementById('typingIndicator'),
             statusIndicator: document.getElementById('statusIndicator'),
             resetBtn: document.getElementById('resetBtn'),
+            feedDataBtn: document.getElementById('feedDataBtn'),
             sidebar: document.getElementById('sidebar'),
             toggleSidebar: document.getElementById('toggleSidebar'),
             mobileMenuBtn: document.getElementById('mobileMenuBtn'),
@@ -61,6 +62,9 @@ class TaxChatbot {
         
         // Reset chat
         this.elements.resetBtn.addEventListener('click', () => this.resetChat());
+        
+        // Feed Data button
+        this.elements.feedDataBtn.addEventListener('click', () => this.goToUpload());
         
         // Sidebar events
         this.elements.toggleSidebar.addEventListener('click', () => this.toggleSidebar());
@@ -413,6 +417,10 @@ class TaxChatbot {
     
     hideLoading() {
         this.elements.loadingOverlay.classList.remove('show');
+    }
+    
+    goToUpload() {
+        window.location.href = '/upload.html';
     }
 }
 

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Documents - US Tax Chatbot</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <h1>US Tax Chatbot</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="backToChatBtn" class="btn btn-secondary" title="Back to Chat">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Chat
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Upload Area -->
+        <main class="main-content">
+            <div class="upload-container">
+                <div class="upload-content">
+                    <div class="upload-header">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h2>Upload Tax Documents</h2>
+                        <p>Select PDF files to add to the chatbot's knowledge base. The documents will be processed and made searchable.</p>
+                    </div>
+
+                    <!-- Upload Area -->
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <div class="upload-text">
+                            <h3>Drop PDF files here or click to browse</h3>
+                            <p>Supports multiple PDF files up to 16MB each</p>
+                        </div>
+                        <input type="file" id="fileInput" multiple accept=".pdf" style="display: none;">
+                        <button class="btn btn-primary" id="browseBtn">
+                            <i class="fas fa-folder-open"></i>
+                            Browse Files
+                        </button>
+                    </div>
+
+                    <!-- Selected Files -->
+                    <div class="selected-files" id="selectedFiles" style="display: none;">
+                        <h3>Selected Files</h3>
+                        <div class="files-list" id="filesList">
+                            <!-- Files will be added here dynamically -->
+                        </div>
+                        <div class="upload-actions">
+                            <button class="btn btn-primary" id="uploadBtn" disabled>
+                                <i class="fas fa-upload"></i>
+                                Upload Documents
+                            </button>
+                            <button class="btn btn-secondary" id="clearBtn">
+                                <i class="fas fa-trash"></i>
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload Progress -->
+                    <div class="upload-progress" id="uploadProgress" style="display: none;">
+                        <div class="progress-header">
+                            <h3>Processing Documents</h3>
+                            <p id="progressText">Preparing upload...</p>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-details" id="progressDetails">
+                            <!-- Progress details will be shown here -->
+                        </div>
+                    </div>
+
+                    <!-- Upload Results -->
+                    <div class="upload-results" id="uploadResults" style="display: none;">
+                        <div class="results-header">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>Upload Complete</h3>
+                        </div>
+                        <div class="results-content" id="resultsContent">
+                            <!-- Results will be shown here -->
+                        </div>
+                        <div class="results-actions">
+                            <button class="btn btn-primary" id="backToChatBtn2">
+                                <i class="fas fa-arrow-left"></i>
+                                Back to Chat
+                            </button>
+                            <button class="btn btn-secondary" id="uploadMoreBtn">
+                                <i class="fas fa-plus"></i>
+                                Upload More
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Processing your documents...</p>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal" id="errorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Upload Error</h3>
+                <button class="modal-close" id="closeErrorModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage">An error occurred during upload. Please try again.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="retryBtn">Retry</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="upload.js"></script>
+</body>
+</html>
